@@ -69,12 +69,12 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
         .len = 0,
         .cap = (a.len < mid + 1 ? a.len : mid + 1),
     };
+    bigint_sum(x, y, &x_y);
     BigInt z_w = {
         .ptr = c->ptr + x_y.cap,  // avoid malloc
         .len = 0,
         .cap = (b.len < mid + 1 ? b.len : mid + 1),
     };
-    bigint_sum(x, y, &x_y);
     bigint_sum(z, w, &z_w);
 
     BigInt xw_yz = bigint_new(x_y.cap + z_w.cap);  // @todo can I avoid all this mallocs 
@@ -86,18 +86,18 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
         .len = 0,
         .cap = y.len + w.len,
     };
+    karastuba_rec(y, w, &yw);
     BigInt xz = {
         .ptr = c->ptr + mid * 2,  // avoid malloc
         .len = 0,
         .cap = x.len + z.len,
     };
-
     karastuba_rec(x, z, &xz);
-    karastuba_rec(y, w, &yw);
 
-    bigint_sub_eq(&xw_yz, xz);
     bigint_sub_eq(&xw_yz, yw);
+    bigint_sub_eq(&xw_yz, xz);
 
+    // cleaning memory after usage
     if (yw.len < mid * 2) memset(c->ptr + yw.len, 0, (mid * 2 - yw.len) * 8);
     if (xz.len < c->len - mid * 2)
         memset(c->ptr + mid * 2 + xz.len, 0, (c->len - mid * 2 - xz.len) * 8);
