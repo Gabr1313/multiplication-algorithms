@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
-./gen 100000 100000 >in_gen.txt
+./gen $1 $1 >in.gen.txt
 
-{ time ./naif <in_gen.txt >out.naif.txt; } 2> /tmp/time.txt
-real_time=$(grep real /tmp/time.txt | awk '{print $2}')
-echo "Time naif:      $real_time"
+{ time ./karatsuba <in.gen.txt >out.karatsuba.txt; } 2> /tmp/time_karatsuba.txt &
+pid_karatsuba=$!
 
-{ time ./karatsuba <in_gen.txt >out.karatsuba.txt; } 2> /tmp/time.txt
-real_time=$(grep real /tmp/time.txt | awk '{print $2}')
-echo "Time karatsuba: $real_time"
+{ time ./naif <in.gen.txt >out.naif.txt; } 2> /tmp/time_naif.txt &
+pid_naif=$!
+
+wait $pid_karatsuba
+real_time_karatsuba=$(grep real /tmp/time_karatsuba.txt | awk '{print $2}')
+echo "Time karatsuba: $real_time_karatsuba"
+
+wait $pid_naif
+real_time_naif=$(grep real /tmp/time_naif.txt | awk '{print $2}')
+echo "Time naif:      $real_time_naif"
 
 diff -q out.naif.txt out.karatsuba.txt

@@ -6,12 +6,12 @@ CXXFLAGS_DEBUG     = $(CXXFLAGS_COMMON) -O0 -g3 -fsanitize=address,undefined
 CXXFLAGS_LINK      = 
 
 MODE ?= debug
-ifeq ($(MODE), debug)
-	CXXFLAGS = $(CXXFLAGS_DEBUG)
+ifeq ($(MODE), fast)
+	CXXFLAGS = $(CXXFLAGS_RELEASE_2)
 else ifeq ($(MODE), release)
-	CXXFLAGS = $(CXXFLAGS_RELEASE2)
-else
 	CXXFLAGS = $(CXXFLAGS_RELEASE)
+else
+	CXXFLAGS = $(CXXFLAGS_DEBUG)
 endif
 
 SRC_DIR = .
