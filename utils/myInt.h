@@ -3,35 +3,38 @@
 #include "myType.h"
 #include "myString.h"
 
-typedef struct _bigNum {
-    u64 cap;
+typedef struct _BigInt {
+    u64 cap, len; // cap and len should be multiplied by 64
     u64 *ptr;
     // bits are used as follow:
     // - the least significant is in the rightmost bit of the first element
     // - the most significant is in the leftmost bit of the last element
-} BigNum;
+} BigInt;
 
-void bignum_free(BigNum n);
+void bigint_free(BigInt n);
 
-BigNum bignum_clone(BigNum n);
+BigInt bigint_new(u64 u64s);
 
-String bignum_to_string(BigNum n);
+BigInt bigint_clone(BigInt n);
 
-void bignum_print(FILE* stream, BigNum x);
+void bigint_shrink(BigInt *n);
 
-BigNum bignum_new(u64 bits);
+void bigint_set(BigInt *n, u64 pos, u64 val);
 
-// does not realloc
-void bignum_set(BigNum *n, u64 pos, u64 val);
+u64 bigint_is_set(BigInt n, u64 pos);
 
-void bignum_shrink(BigNum *n, u64 cap);
+void bigint_sub_eq(BigInt *a, BigInt b);
 
-BigNum bignum_read(FILE* stream);
+void bigint_sum_eq_uncheked(BigInt *a, BigInt b);
 
-void bignum_cpy_increase_cap(BigNum a, u64 cap);
+void bigint_sum(BigInt a, BigInt b, BigInt *c);
 
-void bignum_sub_eq(const BigNum *const a, BigNum b);
+String bigint_to_string(BigInt n);
 
-void bignum_sum_eq_uncheked(BigNum *a, BigNum b);
+String bigint_to_string_hex(BigInt n);
 
-void bignum_sum(BigNum a, BigNum b, BigNum *c);
+BigInt bigint_read(FILE *stream);
+
+void bigint_print(FILE *stream, BigInt x);
+
+void bigint_print_hex(FILE *stream, BigInt x);

@@ -1,26 +1,100 @@
 #include "myInt.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-void bignum_free(BigNum n) {
+void bigint_free(BigInt n) {
     free(n.ptr);
 }
 
-BigNum bignum_clone(BigNum n) {
-    BigNum m;
-    m.cap = n.cap;
-    assert(m.cap % 64 == 0);
-    m.ptr = malloc(m.cap / 8);
-    memcpy(m.ptr, n.ptr, m.cap / 8);
+BigInt bigint_new(u64 u64s) {
+    BigInt n = {
+        .cap = u64s,
+        .len = n.cap,
+        .ptr = calloc(n.cap, sizeof(u64)),
+    };
+    assert(n.ptr);
+    return n;
+}
+
+BigInt bigint_clone(BigInt n) {
+    BigInt m = {
+        .cap = n.cap,
+        .len = n.len,
+        .ptr = malloc(m.cap * 8),
+    };
+    assert(m.ptr);
+    memcpy(m.ptr, n.ptr, m.cap * 8);
     return m;
 }
 
-String bignum_to_string(BigNum n) {
-    n = bignum_clone(n);
-    String s = string_new(n.cap >= 6 ? n.cap / 3 : 2);  // 3 < log2(10)
-    int right_most = n.cap / 64;
+void bigint_shrink(BigInt *n) {
+    if (n->len < n->cap) {
+        n->ptr = realloc(n->ptr, n->len * 8);
+        assert(n->ptr);
+        n->cap = n->len;
+    } else assert(n->len == n->cap);
+}
+
+void bigint_set(BigInt *n, u64 pos, u64 val) {
+    assert(pos < n->cap * 64);
+    if (pos >= n->len * 64) n->len = (pos + 63) / 64;
+    if (val) n->ptr[pos / 64] |= 1ull << (pos % 64);
+    else n->ptr[pos / 64] &= ~(1ull << (pos % 64));
+}
+
+u64 bigint_is_set(BigInt n, u64 pos) {
+    assert(pos < n.len * 64);
+    return !!(n.ptr[pos / 64] & 1ull << (pos % 64));
+}
+
+void bigint_sub_eq(BigInt *a, BigInt b) {
+    assert(a->len >= b.len);
+    u64 carry = 0;
+    for (u64 i = 0; i < a->len; i++) {
+        u64 res = a->ptr[i] - carry - (i < b.len ? b.ptr[i] : 0);
+        carry = (res > a->ptr[i]) || (carry && res == a->ptr[i]);
+        a->ptr[i] = res;
+    }
+    assert(carry == 0);
+}
+
+void bigint_sum_eq_uncheked(BigInt *a, BigInt b) {
+    u64 carry = 0;
+    for (u64 i = 0; i < a->len; i++) {
+        u64 res = a->ptr[i] + carry + (i < b.cap ? b.ptr[i] : 0);
+        carry = res < a->ptr[i] || (carry && res == a->ptr[i]);
+        a->ptr[i] = res;
+    }
+    assert(carry == 0);
+}
+
+void bigint_sum(BigInt a, BigInt b, BigInt *c) {
+    if (a.len < b.len) {
+        BigInt tmp = a;
+        a = b;
+        b = tmp;
+    }
+    assert(c->cap >= a.len);
+    int carry = 0;
+    for (u64 i = 0; i < a.len; i++) {
+        u64 res = a.ptr[i] + carry + (i < b.len ? b.ptr[i] : 0);
+        carry = res < a.ptr[i] || (carry && res == a.ptr[i]);
+        c->ptr[i] = res;
+    }
+    if (carry) {
+        assert(c->cap > a.len);
+        c->len = a.len + 1;
+        c->ptr[a.len] = 1ull;
+    } else c->len = a.len;
+}
+
+String bigint_to_string(BigInt n) {
+    n = bigint_clone(n);
+    String s = string_new(n.len ? n.len * 64 / 3 : 2);  // 3 < log2(10)
+    int right_most = n.len;
     while (1) {
         u64 carry = 0;
         while (right_most > 0 && n.ptr[right_most - 1] == 0) right_most--;
@@ -38,7 +112,7 @@ String bignum_to_string(BigNum n) {
         }
         string_push(&s, carry + '0');
     }
-    bignum_free(n);
+    bigint_free(n);
     if (s.len == 0) string_push(&s, '0');
     string_push(&s, '\0');
     string_shrink(&s);
@@ -46,38 +120,27 @@ String bignum_to_string(BigNum n) {
     return s;
 }
 
-BigNum bignum_new(u64 bits) {
-    BigNum n = {
-        .cap = (bits + 63) / 64 * 64,
-        .ptr = malloc(n.cap / 8),
-    };
-    assert(n.ptr);
-    return n;
-}
-
-void bignum_set(BigNum *n, u64 pos, u64 val) {
-    assert(pos < n->cap);
-    if (val) n->ptr[(pos) / 64] |= 1ull << ((pos) % 64);
-    else n->ptr[(pos) / 64] &= ~(1ull << ((pos) % 64));
-}
-
-void bignum_shrink(BigNum *n, u64 cap) {
-    if (cap % 64) n->ptr[(cap - 1) / 64] &= (UINT64_MAX >> (64 - cap % 64));
-    cap = (cap + 63) / 64 * 64;
-    if (cap != n->cap) {
-        n->ptr = realloc(n->ptr, n->cap / 8);
-        assert(n->ptr);
-        n->cap = cap;
+String bigint_to_string_hex(BigInt n) {
+    String s = string_new(n.len ? n.len * 17 + 1 : 2);  // 3 < log2(10)
+    if (!n.len) {
+        sprintf(s.ptr, "0");
+        s.len = 1;
+    } else {
+        for (int i = n.len - 1; i >= 0; i--)
+            sprintf(s.ptr + (n.len - 1 - i) * 17, "%016lx ", n.ptr[i]);
+        s.ptr[s.cap - 2] = '\0';
+        s.len = s.cap - 2;
     }
+    return s;
 }
 
-BigNum bignum_read(FILE *stream) {
+BigInt bigint_read(FILE *stream) {
     String s = string_read(stream);
     for (u64 i = 0; i < s.len - 1; i++) assert(s.ptr[i] >= '0' && s.ptr[i] <= '9');
-    BigNum n = bignum_new(s.len * 4);  // 4 > log2(10)
+    BigInt n = bigint_new((s.len * 4 + 63) / 64);  // 4 > log2(10)
     u64 left_most = 0, pos = 0;
     while (left_most <= s.len - 2) {
-        bignum_set(&n, pos++, (s.ptr[s.len - 2] - '0') % 2);
+        bigint_set(&n, pos++, (s.ptr[s.len - 2] - '0') % 2);
         s.ptr[s.len - 2] = (s.ptr[s.len - 2] - '0') / 2 + '0';
         for (u64 i = s.len - 3; i >= left_most && i != UINT64_MAX; i--) {
             s.ptr[i + 1] += 5 * ((s.ptr[i] - '0') % 2);
@@ -86,63 +149,19 @@ BigNum bignum_read(FILE *stream) {
         left_most += (s.ptr[left_most] == '0');
     }
     string_free(s);
-    bignum_shrink(&n, pos);
+    n.len = (pos + 63) / 64;
+    bigint_shrink(&n);
     return n;
 }
 
-void bignum_cpy_increase_cap(BigNum a, u64 cap) {
-    BigNum b = bignum_new(cap);
-    memcpy(b.ptr, a.ptr, a.cap / 8);
-    memset(b.ptr + a.cap / 64, 0, b.cap / 8 - a.cap / 8);
+void bigint_print(FILE *stream, BigInt x) {
+    String s = bigint_to_string(x);
+    fprintf(stream, "%s", s.ptr);
+    string_free(s);
 }
 
-void bignum_sub_eq(const BigNum *const a, BigNum b) {
-    assert(a->cap >= b.cap);
-    u64 carry = 0;
-    for (u64 i = 0; i < a->cap / 64; i++) {
-        u64 res = a->ptr[i] - carry;
-        if (i < b.cap / 64) res -= b.ptr[i];
-        carry = res > a->ptr[i];
-        a->ptr[i] = res;
-    }
-}
-
-void bignum_sum_eq_uncheked(BigNum *a, BigNum b) {
-    u64 carry = 0;
-    for (u64 i = 0; i < a->cap / 64; i++) {
-        u64 res = a->ptr[i] + carry;
-        if (i < b.cap / 64) res += b.ptr[i];
-        carry = res < a->ptr[i];
-        a->ptr[i] = res;
-    }
-    assert(carry == 0);
-}
-
-void bignum_sum(BigNum a, BigNum b, BigNum *c) {
-    if (a.cap < b.cap) {
-        BigNum tmp = a;
-        a = b;
-        b = tmp;
-    }
-    assert(c->cap >= a.cap);
-    int carry = 0;
-    for (u64 i = 0; i < a.cap / 64; i++) {
-        c->ptr[i] = a.ptr[i] + carry;
-        carry = (c->ptr[i] == 0);
-        if (i < b.cap / 64) {
-            c->ptr[i] += b.ptr[i];
-            carry |= c->ptr[i] < b.ptr[i];
-        }
-    }
-    if (carry) {
-        assert(c->cap >= a.cap + 64);
-        c->cap = a.cap + 64;
-        c->ptr[a.cap / 64] = 1ull;
-    } else c->cap = a.cap;
-}
-
-void bignum_print(FILE *stream, BigNum x) {
-    String s = bignum_to_string(x);
+void bigint_print_hex(FILE *stream, BigInt x) {
+    String s = bigint_to_string_hex(x);
     fprintf(stream, "%s", s.ptr);
     string_free(s);
 }

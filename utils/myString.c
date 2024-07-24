@@ -10,7 +10,7 @@ String string_new(u64 cap) {
     String s;
     s.cap = cap;
     s.ptr = realloc(NULL, sizeof(*s.ptr) * cap);
-    if (!s.ptr) assert(0);
+    assert(s.ptr);
     s.len = 0;
     return s;
 }
@@ -22,7 +22,7 @@ void string_free(String s) {
 void string_push(String *s, char ch) {
     if (s->len == s->cap) {
         s->ptr = realloc(s->ptr, sizeof(*s->ptr) * (s->cap *= 2));
-        if (!s->ptr) assert(0);
+        assert(s->ptr);
     }
     s->ptr[s->len++] = ch;
 }
@@ -30,7 +30,7 @@ void string_push(String *s, char ch) {
 void string_shrink(String *s) {
     s->cap = s->len;
     s->ptr = realloc(s->ptr, sizeof(*s->ptr) * s->cap);
-    if (!s->ptr) assert(0);
+    assert(s->ptr);
 }
 
 String string_read(FILE *stream) {

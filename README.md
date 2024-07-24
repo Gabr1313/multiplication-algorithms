@@ -1,4 +1,5 @@
 # Multiplication algorithm
-In this repo I share my implementation of famous algorithm for multiplication in `C`.
+In this repo I share my implementation of famous algorithm for multiplication in `C`.  
 Up to now, I implemented:
-- Karastuba
+- Naif: O( n^2 )
+- Karastuba: O( n^(log2(3)) )
