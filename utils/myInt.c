@@ -121,6 +121,20 @@ String bigint_to_string(BigInt n) {
 }
 
 String bigint_to_string_hex(BigInt n) {
+    String s = string_new(n.len ? n.len * 16 + 1 : 2);  // 3 < log2(10)
+    if (!n.len) {
+        sprintf(s.ptr, "0");
+        s.len = 1;
+    } else {
+        for (int i = n.len - 1; i >= 0; i--)
+            sprintf(s.ptr + (n.len - 1 - i) * 16, "%016lx", n.ptr[i]);
+        s.ptr[s.cap - 1] = '\0';
+        s.len = s.cap - 1;
+    }
+    return s;
+}
+
+String bigint_to_string_hex_dbg(BigInt n) {
     String s = string_new(n.len ? n.len * 17 + 1 : 2);  // 3 < log2(10)
     if (!n.len) {
         sprintf(s.ptr, "0");
@@ -151,6 +165,23 @@ BigInt bigint_read(FILE *stream) {
     string_free(s);
     n.len = (pos + 63) / 64;
     bigint_shrink(&n);
+    return n;
+}
+
+BigInt bigint_read_hex(FILE *stream) {
+    String s = string_read(stream);
+    for (u64 i = 0; i < s.len - 1; i++)
+        assert((s.ptr[i] >= '0' && s.ptr[i] <= '9') || (s.ptr[i] >= 'a' && s.ptr[i] <= 'f'));
+    BigInt n = bigint_new((s.len + 15) / 16);
+    n.len = n.cap;
+
+    for (u64 i = 0; i < n.len - 1; i++) {
+        sscanf(s.ptr + s.len - (i + 1) * 16, "%lx", &n.ptr[i]);
+        s.ptr[s.len - (i + 1) * 16] = '\0';
+    }
+    sscanf(s.ptr, "%lx", &n.ptr[n.len - 1]);
+
+    string_free(s);
     return n;
 }
 

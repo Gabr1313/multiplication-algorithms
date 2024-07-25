@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <stdio.h>
+#include <sys/time.h>
 
 #include "utils/myInt.h"
 #include "utils/myString.h"
@@ -28,7 +28,7 @@ void bigint_sum_eq_shifted_unchecked(BigInt* c, BigInt* a, u64 shift) {
     c->len = (len2 > c->len ? len2 : c->len);
 }
 
-BigInt naif_muls(BigInt a, BigInt b) {
+BigInt mul2(BigInt a, BigInt b) {
     BigInt c = bigint_new(a.len + b.len + 1);  // +1 to avoid OF
     if (a.len < b.len) {
         BigInt tmp = a;
@@ -59,32 +59,24 @@ void bigint_sum_eq_mul_u32(BigInt* c, BigInt a, u32 b, u64 u32_shift) {
     }
 }
 
-BigInt naif_mulp(BigInt a, BigInt b) {
-    BigInt c = bigint_new(a.len + b.len);  // +1 to avoid OF
+BigInt mul(BigInt a, BigInt b) {
+    BigInt c = bigint_new(a.len + b.len);
     if (a.len < b.len) {
         BigInt tmp = a;
         a = b;
         b = tmp;
     }
     for (u64 i = 0; i < b.len * 2; i++) bigint_sum_eq_mul_u32(&c, a, ((u32*)b.ptr)[i], i);
+
+    for (u64 i = c.len - 1;; i--) {
+        if (c.ptr[i] != 0) {
+            c.len = i + 1;
+            break;
+        } else if (i == 0) {
+            c.len = 0;
+            break;
+        }
+    }
+
     return c;
-}
-
-int main() {
-    BigInt a = bigint_read(stdin);
-    BigInt b = bigint_read(stdin);
-    // BigInt c = naif_muls(a, b);
-    BigInt c = naif_mulp(a, b);
-
-    // bigint_print(stdout, a);
-    // fprintf(stdout, "\n*\n");
-    // bigint_print(stdout, b);
-    // fprintf(stdout, "\n=\n");
-    bigint_print(stdout, c);
-    fprintf(stdout, "\n");
-
-    bigint_free(a);
-    bigint_free(b);
-    bigint_free(c);
-    return 0;
 }

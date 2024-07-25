@@ -26,20 +26,23 @@ OBJECTS = $(patsubst $(UTL_DIR)/%.c,$(OBJ_DIR)/%.o,$(UTILS))
 $(OBJ_DIR)/%.o: $(UTL_DIR)/%.c $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-karatsuba: $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/karatsuba.c -o $(OBJ_DIR)/karatsuba.o
-	$(CXX) $(CXXFLAGS) $(CXXFLAGS_LINK) $(OBJECTS) $(OBJ_DIR)/karatsuba.o -o $(BIN_DIR)/karatsuba
+$(OBJ_DIR)/main.o:
+	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/main.c -o $(OBJ_DIR)/main.o
 
-naif: $(OBJECTS)
+karatsuba: $(OBJECTS) $(OBJ_DIR)/main.o
+	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/karatsuba.c -o $(OBJ_DIR)/karatsuba.o
+	$(CXX) $(CXXFLAGS) $(CXXFLAGS_LINK) $(OBJECTS) $(OBJ_DIR)/karatsuba.o $(OBJ_DIR)/main.o -o $(BIN_DIR)/karatsuba
+
+naif: $(OBJECTS) $(OBJ_DIR)/main.o
 	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/naif.c -o $(OBJ_DIR)/naif.o
-	$(CXX) $(CXXFLAGS) $(CXXFLAGS_LINK) $(OBJECTS) $(OBJ_DIR)/naif.o -o $(BIN_DIR)/naif
+	$(CXX) $(CXXFLAGS) $(CXXFLAGS_LINK) $(OBJECTS) $(OBJ_DIR)/naif.o $(OBJ_DIR)/main.o -o $(BIN_DIR)/naif
 
 gen:
 	$(CXX) $(CXXFLAGS) $(SRC_DIR)/gen.c -o $(BIN_DIR)/gen
 
 .PHONY: clean
 clean:
-	rm -f $(OBJ_DIR)/*.o
+	rm -f $(OBJ_DIR)/*.o karatsuba naif
 
 .PHONY: clean2
 clean2:

@@ -2,10 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "utils/myInt.h"
 
-void karastuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
+void karatsuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
     // `*c` so I avoid memory allocations. I use it as a buffer
     assert(c->cap >= a.len + b.len);
     if (a.len == 0 || b.len == 0) {
@@ -41,6 +42,10 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
         c->ptr[0] += xw_yz << 32;
         u64 carry = c->ptr[0] < tmp;
         c->ptr[1] += (xw_yz >> 32) + carry + (carry_2 << 32);
+        if (c->ptr[1] == 0) {
+            if (c->ptr[0] == 0) c->len = 0;
+            else c->len = 1;
+        }
         return;
     }
 
@@ -92,23 +97,23 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
     };
     buffer += xw_yz.cap;
 
-    karastuba_rec(x_y, z_w, &xw_yz, buffer);
+    karatsuba_rec(x_y, z_w, &xw_yz, buffer);
 
-    memset(x_y.ptr, 0, x_y.len * 8); // cleaning memory after usage
-    memset(z_w.ptr, 0, z_w.len * 8); // cleaning memory after usage
+    memset(x_y.ptr, 0, x_y.len * 8);  // cleaning memory after usage
+    memset(z_w.ptr, 0, z_w.len * 8);  // cleaning memory after usage
 
     BigInt yw = {
         .ptr = c->ptr,  // avoid malloc
         .len = 0,
         .cap = y.len + w.len,
     };
-    karastuba_rec(y, w, &yw, buffer);
+    karatsuba_rec(y, w, &yw, buffer);
     BigInt xz = {
         .ptr = c->ptr + mid * 2,  // avoid malloc
         .len = 0,
         .cap = x.len + z.len,
     };
-    karastuba_rec(x, z, &xz, buffer);
+    karatsuba_rec(x, z, &xz, buffer);
 
     bigint_sub_eq(&xw_yz, yw);
     bigint_sub_eq(&xw_yz, xz);
@@ -120,7 +125,7 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
     };
     bigint_sum_eq_uncheked(&fake_num, xw_yz);
 
-    memset(xw_yz.ptr, 0, xw_yz.len * 8); // cleaning memory after usage: is this useless?
+    memset(xw_yz.ptr, 0, xw_yz.len * 8);  // cleaning memory after usage: is this useless?
 
     for (u64 i = c->len - 1;; i--) {
         if (c->ptr[i] != 0) {
@@ -135,30 +140,12 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
     return;
 }
 
-BigInt karastuba(BigInt a, BigInt b) {
-    BigInt c = bigint_new(a.cap + b.cap);
-    u64 buffer_size = 4, x = (a.cap > b.cap ? a.cap : b.cap);
+BigInt mul(BigInt a, BigInt b) {
+    BigInt c = bigint_new(a.len + b.len);
+    u64 buffer_size = 4, x = (a.len > b.len ? a.len : b.len);
     while (x > 2) buffer_size += (x = (x / 2 + 1)) * 2;
     u64* buffer = calloc(buffer_size, 8);
-    karastuba_rec(a, b, &c, buffer);
+    karatsuba_rec(a, b, &c, buffer);
     free(buffer);
     return c;
-}
-
-int main() {
-    BigInt a = bigint_read(stdin);
-    BigInt b = bigint_read(stdin);
-    BigInt c = karastuba(a, b);
-
-    // bigint_print(stdout, a);
-    // fprintf(stdout, "\n*\n");
-    // bigint_print(stdout, b);
-    // fprintf(stdout, "\n=\n");
-    bigint_print(stdout, c);
-    fprintf(stdout, "\n");
-
-    bigint_free(a);
-    bigint_free(b);
-    bigint_free(c);
-    return 0;
 }

@@ -22,7 +22,7 @@ make clean MODE=fast karatsuba
 ```
 
 ## Testing
-To test the multiplication of numbers with approximately 1000 decimal digits, run:
+To test the multiplication of numbers with approximately 1000 base-2 digits, run:
 ```sh
 ./test.sh 1000
 ```

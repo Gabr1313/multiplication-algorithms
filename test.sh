@@ -2,18 +2,16 @@
 
 ./gen $1 $1 >in.gen.txt
 
-{ time ./karatsuba <in.gen.txt >out.karatsuba.txt; } 2> /tmp/time_karatsuba.txt &
+./karatsuba <in.gen.txt >out.karatsuba.txt 2> /tmp/time.karatsuba.txt &
 pid_karatsuba=$!
 
-{ time ./naif <in.gen.txt >out.naif.txt; } 2> /tmp/time_naif.txt &
+./naif      <in.gen.txt >out.naif.txt      2> /tmp/time.naif.txt      &
 pid_naif=$!
 
 wait $pid_karatsuba
-real_time_karatsuba=$(grep real /tmp/time_karatsuba.txt | awk '{print $2}')
-echo "Time karatsuba: $real_time_karatsuba"
+echo "Time karatsuba: $(cat /tmp/time.karatsuba.txt)"
 
 wait $pid_naif
-real_time_naif=$(grep real /tmp/time_naif.txt | awk '{print $2}')
-echo "Time naif:      $real_time_naif"
+echo "Time naif:      $(cat /tmp/time.naif.txt     )"
 
 diff -q out.naif.txt out.karatsuba.txt
