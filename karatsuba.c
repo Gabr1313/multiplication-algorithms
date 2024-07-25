@@ -1,9 +1,11 @@
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "utils/myInt.h"
 
-void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
+void karastuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
     // `*c` so I avoid memory allocations. I use it as a buffer
     assert(c->cap >= a.len + b.len);
     if (a.len == 0 || b.len == 0) {
@@ -23,6 +25,7 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
     // (xz << 2*mid) + (xw+yz << mid) + yz
 
     c->len = a.len + b.len;
+    assert(c->cap >= c->len);
     if (a.len <= 1 && b.len <= 1) {
         u64 x = *a.ptr >> 32;
         u64 y = *a.ptr & UINT32_MAX;
@@ -41,17 +44,22 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
         return;
     }
 
-    u64 mid = (a.len > b.len ? a.len / 2 : b.len / 2);
+    if (a.len < b.len) {
+        BigInt tmp = a;
+        a = b;
+        b = tmp;
+    }
+    u64 mid = a.len / 2;
 
     BigInt x = {
         .ptr = &a.ptr[mid],
-        .len = (a.len > mid ? a.len - mid : 0),
-        .cap = (a.cap > mid ? a.cap - mid : 0),
+        .len = a.len - mid,
+        .cap = a.cap - mid,
     };
     BigInt y = {
         .ptr = &a.ptr[0],
-        .len = (a.len > mid ? mid : a.len),
-        .cap = (a.cap > mid ? mid : a.cap),
+        .len = mid,
+        .cap = mid,
     };
     BigInt z = {
         .ptr = &b.ptr[mid],
@@ -67,7 +75,7 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
     BigInt x_y = {
         .ptr = c->ptr,  // avoid malloc
         .len = 0,
-        .cap = (a.len < mid + 1 ? a.len : mid + 1),
+        .cap = mid + 1,
     };
     bigint_sum(x, y, &x_y);
     BigInt z_w = {
@@ -77,30 +85,33 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
     };
     bigint_sum(z, w, &z_w);
 
-    BigInt xw_yz = bigint_new(x_y.cap + z_w.cap);  // @todo can I avoid all this mallocs 
-                                                   // (maybe doing a pool)?
-    karastuba_rec(x_y, z_w, &xw_yz);
+    BigInt xw_yz = {
+        .ptr = buffer,  // avoid malloc
+        .len = 0,
+        .cap = x_y.cap + z_w.cap,
+    };
+    buffer += xw_yz.cap;
+
+    karastuba_rec(x_y, z_w, &xw_yz, buffer);
+
+    memset(x_y.ptr, 0, x_y.len * 8); // cleaning memory after usage
+    memset(z_w.ptr, 0, z_w.len * 8); // cleaning memory after usage
 
     BigInt yw = {
         .ptr = c->ptr,  // avoid malloc
         .len = 0,
         .cap = y.len + w.len,
     };
-    karastuba_rec(y, w, &yw);
+    karastuba_rec(y, w, &yw, buffer);
     BigInt xz = {
         .ptr = c->ptr + mid * 2,  // avoid malloc
         .len = 0,
         .cap = x.len + z.len,
     };
-    karastuba_rec(x, z, &xz);
+    karastuba_rec(x, z, &xz, buffer);
 
     bigint_sub_eq(&xw_yz, yw);
     bigint_sub_eq(&xw_yz, xz);
-
-    // cleaning memory after usage
-    if (yw.len < mid * 2) memset(c->ptr + yw.len, 0, (mid * 2 - yw.len) * 8);
-    if (xz.len < c->len - mid * 2)
-        memset(c->ptr + mid * 2 + xz.len, 0, (c->len - mid * 2 - xz.len) * 8);
 
     BigInt fake_num = {
         .ptr = &c->ptr[mid],
@@ -108,14 +119,29 @@ void karastuba_rec(BigInt a, BigInt b, BigInt* c) {
         .cap = c->cap - mid,
     };
     bigint_sum_eq_uncheked(&fake_num, xw_yz);
-    bigint_free(xw_yz);
+
+    memset(xw_yz.ptr, 0, xw_yz.len * 8); // cleaning memory after usage: is this useless?
+
+    for (u64 i = c->len - 1;; i--) {
+        if (c->ptr[i] != 0) {
+            c->len = i + 1;
+            break;
+        } else if (i == 0) {
+            c->len = 0;
+            break;
+        }
+    }
 
     return;
 }
 
 BigInt karastuba(BigInt a, BigInt b) {
     BigInt c = bigint_new(a.cap + b.cap);
-    karastuba_rec(a, b, &c);
+    u64 buffer_size = 4, x = (a.cap > b.cap ? a.cap : b.cap);
+    while (x > 2) buffer_size += (x = (x / 2 + 1)) * 2;
+    u64* buffer = calloc(buffer_size, 8);
+    karastuba_rec(a, b, &c, buffer);
+    free(buffer);
     return c;
 }
 
