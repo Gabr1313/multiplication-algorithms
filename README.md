@@ -18,7 +18,7 @@ There are 3 buildable executables:
 mkdir ./obj # required for building
 make MODE=release gen
 make clean MODE=fast naif
-make clean MODE=fast gen
+make clean MODE=fast karatsuba
 ```
 
 ## Testing
