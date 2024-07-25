@@ -1,4 +1,4 @@
-CXX = gcc
+CXX                = gcc
 CXXFLAGS_COMMON    = -std=c17 -Wall -Wextra
 CXXFLAGS_RELEASE   = $(CXXFLAGS_COMMON) -O3
 CXXFLAGS_RELEASE_2 = $(CXXFLAGS_RELEASE) --static -DNDEBUG
