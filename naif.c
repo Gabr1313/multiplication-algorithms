@@ -30,15 +30,6 @@ BigInt mul(BigInt a, BigInt b) {
         b = tmp;
     }
     for (u64 i = 0; i < b.len * 2; i++) bigint_sum_eq_mul_u32(&c, a, ((u32*)b.ptr)[i], i);
-    for (u64 i = c.len - 1;; i--) {
-        if (c.ptr[i] != 0) {
-            c.len = i + 1;
-            break;
-        } else if (i == 0) {
-            c.len = 0;
-            break;
-        }
-    }
-
+    bigint_clean(&c);
     return c;
 }

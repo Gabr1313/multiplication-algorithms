@@ -1,8 +1,6 @@
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 
 #include "utils/myInt.h"
 
@@ -127,16 +125,7 @@ void karatsuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
 
     memset(xw_yz.ptr, 0, xw_yz.len * 8);  // cleaning memory after usage: is this useless?
 
-    for (u64 i = c->len - 1;; i--) {
-        if (c->ptr[i] != 0) {
-            c->len = i + 1;
-            break;
-        } else if (i == 0) {
-            c->len = 0;
-            break;
-        }
-    }
-
+    bigint_clean(c);
     return;
 }
 

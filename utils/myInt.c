@@ -38,6 +38,14 @@ void bigint_shrink(BigInt *n) {
     } else assert(n->len == n->cap);
 }
 
+void bigint_resize(BigInt *n, u64 cap) {
+    if (n->cap == cap) return;
+    n->ptr = realloc(n->ptr, n->len * 8);
+    assert(n->ptr);
+    if (n->cap > cap) memset(n->ptr + n->cap, 0, (cap - n->cap) * 8);
+    n->cap = cap;
+}
+
 void bigint_set(BigInt *n, u64 pos, u64 val) {
     assert(pos < n->cap * 64);
     if (pos >= n->len * 64) n->len = (pos + 63) / 64;
@@ -89,6 +97,18 @@ void bigint_sum(BigInt a, BigInt b, BigInt *c) {
         c->len = a.len + 1;
         c->ptr[a.len] = 1ull;
     } else c->len = a.len;
+}
+
+void bigint_clean(BigInt *c) {
+    for (u64 i = c->len - 1;; i--) {
+        if (c->ptr[i] != 0) {
+            c->len = i + 1;
+            break;
+        } else if (i == 0) {
+            c->len = 0;
+            break;
+        }
+    }
 }
 
 String bigint_to_string(BigInt n) {
