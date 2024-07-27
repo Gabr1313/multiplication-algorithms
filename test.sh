@@ -2,7 +2,7 @@
 
 ./gen $1 $1 >in.gen.txt
 
-./fft <in.gen.txt >out.fft.txt 2> time.fft.txt &
+./fft <in.gen.txt >out.fft.txt 2> time.fft.txt                   &
 pid_fft=$!
 
 ./karatsuba <in.gen.txt >out.karatsuba.txt 2> time.karatsuba.txt &
