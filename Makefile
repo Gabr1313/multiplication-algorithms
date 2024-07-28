@@ -1,7 +1,7 @@
 CXX                = gcc
 CXXFLAGS_COMMON    = -std=c17 -Wall -Wextra
 CXXFLAGS_RELEASE   = $(CXXFLAGS_COMMON) -O3
-CXXFLAGS_RELEASE_2 = $(CXXFLAGS_RELEASE) --static -DNDEBUG
+CXXFLAGS_RELEASE_2 = $(CXXFLAGS_RELEASE) --static -DNDEBUG -ffast-math
 CXXFLAGS_DEBUG     = $(CXXFLAGS_COMMON) -O0 -g3 -fsanitize=address,undefined
 CXXFLAGS_LINK      = -lm
 
