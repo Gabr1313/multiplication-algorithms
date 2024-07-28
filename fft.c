@@ -6,41 +6,98 @@
 #include "utils/myInt.h"
 
 #define PI 3.141592653589793238462643383279502884
-#define PRC 6 // precision: 2 to 6
+#define PRC 4  // precision: 2 to 6
 
 typedef complex double cpx;
 
-void fft(cpx* a, u64 a_size, u64 invert) {
-    u64 n = a_size;
-
+u32* pre_calc_pos(u64 n) {
+    assert(n < 1ull << 32);  // how much memory would i ever need?
+    u32* res = malloc(sizeof(*res) * n);
     for (u64 i = 1, j = 0; i < n; i++) {
-        u64 bit = n >> 1;
+        u32 bit = n >> 1;
         for (; j & bit; bit >>= 1) j ^= bit;
         j ^= bit;
+        res[i] = j;
+    }
+    return res;
+}
 
-        if (i < j) {
-            cpx tmp = a[i];
-            a[i] = a[j];
-            a[j] = tmp;
+cpx* pre_calc_ang(u64 n) {  // @todo i could get almost 1/4 of the memory using symmetry
+                            // i am usign 1st and 2nd quadrant, I could use only 1/2 of the 1st
+    u64 cnt = 0;
+    for (u64 len = 2; len <= n; len <<= 1) cnt += len / 2;
+    cpx* res = malloc(sizeof(*res) * cnt);
+    for (u64 len = 2, idx = 0; len <= n; len <<= 1) {
+        double ang = 2 * PI / len;
+        cpx z = cos(ang) + I * sin(ang);
+        cpx w = 1;
+        for (u64 j = 0; j < len / 2; j++, idx++) {
+            res[idx] = w;
+            fprintf(stderr, "(%f %f)", creal(w), cimag(w));
+            w *= z;
         }
+        fprintf(stderr, "\n");
     }
 
-    for (u64 len = 2; len <= n; len <<= 1) {
-        double ang = 2 * PI / len * (invert ? -1 : 1);
-        cpx wlen = cos(ang) + I * sin(ang);
-        for (u64 i = 0; i < n; i += len) {
-            cpx w = 1;
-            for (u64 j = 0; j < len / 2; j++) {
-                cpx u = a[i + j], v = a[i + j + len / 2] * w;
-                a[i + j] = u + v;
-                a[i + j + len / 2] = u - v;
-                w *= wlen;
-            }
+    /* for (u64 len = 2, idx = 0; len <= n; len <<= 1) {
+        double ang = 2 * PI / len;
+        cpx z = cos(ang) + I * sin(ang);
+        cpx w = 1;
+        for (u64 j = 0; j < len / 8; j++, idx++) {
+            fprintf(stderr, "(%f %f)", creal(w), cimag(w));
+            w *= z;
+        }
+        for (u64 j = len / 8; j < len / 4; j++, idx++) {
+            fprintf(stderr, "(%f %f)", cimag(w), creal(w));
+            w /= z;
+        }
+        w = I;
+        for (u64 j = len / 4; j < len * 3 / 8; j++, idx++) {
+            fprintf(stderr, "(%f %f)", -creal(w), cimag(w));
+            w /= z;
+        }
+        for (u64 j = len * 3 / 8; j < len / 2; j++, idx++) {
+            fprintf(stderr, "(%f %f)", -creal(w), cimag(w));
+            w /= z;
+        }
+        fprintf(stderr, "\n");
+    } */
+
+    return res;
+}
+
+void fft(cpx* a, u64 n, u64 invert, u32* pos, cpx* ang) {
+    for (u64 i = 1; i < n; i++) {
+        if (i < pos[i]) {
+            cpx tmp = a[i];
+            a[i] = a[pos[i]];
+            a[pos[i]] = tmp;
         }
     }
 
     if (invert)
-        for (u64 i = 0; i < a_size; i++) a[i] /= n;
+        for (u64 len = 2, i = 0; len <= n; len <<= 1)
+            for (u64 j = 0; j < len / 2; j++, i++) ang[i] = conj(ang[i]);
+
+    cpx* ptr = ang;
+    for (u64 len = 2; len <= n; len <<= 1) {
+        for (u64 i = 0; i < n; i += len) {
+            cpx* ptr2 = ptr;
+            for (u64 j = 0; j < len / 2; j++, ptr2++) {
+                cpx u = a[i + j], v = a[i + j + len / 2] * *ptr2;
+                a[i + j] = u + v;
+                a[i + j + len / 2] = u - v;
+            }
+        }
+        ptr += len / 2;
+    }
+
+    if (invert)
+        for (u64 len = 2, i = 0; len <= n; len <<= 1)
+            for (u64 j = 0; j < len / 2; j++, i++) ang[i] = conj(ang[i]);
+
+    if (invert)
+        for (u64 i = 0; i < n; i++) a[i] /= n;
 }
 
 BigInt mul(BigInt a, BigInt b) {
@@ -58,10 +115,14 @@ BigInt mul(BigInt a, BigInt b) {
         else fb[i] = 0;
     }
 
-    fft(fa, n, 0);
-    fft(fb, n, 0);
+    u32* pos = pre_calc_pos(n);
+    cpx* angu = pre_calc_ang(n);
+    fft(fa, n, 0, pos, angu);
+    fft(fb, n, 0, pos, angu);
     for (u64 i = 0; i < n; i++) fa[i] *= fb[i];
-    fft(fa, n, 1);
+    fft(fa, n, 1, pos, angu);
+    free(pos);
+    free(angu);
 
     BigInt c = bigint_new(a.len + b.len);
     c.len = c.cap;

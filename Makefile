@@ -46,8 +46,4 @@ gen:
 
 .PHONY: clean
 clean:
-	rm -f $(OBJ_DIR)/*.o karatsuba naif
-
-.PHONY: clean2
-clean2:
-	rm -f $(OBJ_DIR)/*.o karatsuba naif gen
+	rm -f $(OBJ_DIR)/*.o karatsuba naif fft
