@@ -6,7 +6,14 @@
 #include "utils/myInt.h"
 
 #define PI 3.141592653589793238462643383279502884
-#define PRC 4  // precision: 2 to 6
+#define PRC 5  // precision: 2 to 6: higher precision
+               // 1 point in precision => time *= 2
+               // 1 point in precision => memory *= 2
+               // 4: is good up to  1'000'000 binary digits
+               // 4: is good up to 10'000'000 binary digits
+               // 5: i don't know
+               // 6: too much memory => killed
+               // @todo: test in the worst condition: when the digits are all ones
 
 typedef complex double cpx;
 
@@ -22,8 +29,7 @@ u32* pre_calc_pos(u64 n) {
     return res;
 }
 
-cpx* pre_calc_ang(u64 n) {  // @todo i could get almost 1/4 of the memory using symmetry
-                            // i am usign 1st and 2nd quadrant, I could use only 1/2 of the 1st
+cpx* pre_calc_ang(u64 n) {  // see below for less memory usage 
     u64 cnt = 0;
     for (u64 len = 2; len <= n; len <<= 1) cnt += len / 2;
     cpx* res = malloc(sizeof(*res) * cnt);
@@ -33,38 +39,65 @@ cpx* pre_calc_ang(u64 n) {  // @todo i could get almost 1/4 of the memory using 
         cpx w = 1;
         for (u64 j = 0; j < len / 2; j++, idx++) {
             res[idx] = w;
+            w *= z;
+        }
+    }
+    return res;
+}
+
+/* cpx* pre_calc_ang(u64 n) { // the fft code would becomes ugly
+    u64 cnt = 0;
+    for (u64 len = 2; len <= n; len <<= 1) cnt += len / 2;
+    cpx* res = malloc(sizeof(*res) * cnt);
+
+    for (u64 len = 2, idx = 0; len <= n; len <<= 1) {
+        double ang = 2 * PI / len;
+        cpx z = cos(ang) + I * sin(ang);
+        cpx w = 1;
+        if (len < 8) {
+            for (u64 j = 0; j < len / 2; j++, idx++) {
+                res[idx] = w;
+                w *= z;
+            }
+            continue;
+        }
+        for (u64 j = 0; j <= len / 8; j++, idx++) {
+            res[idx] = w;
+            w *= z;
+        }
+    }
+
+    for (u64 len = 2, idx = 0; len <= n; len <<= 1) {
+        double ang = 2 * PI / len;
+        cpx z = cos(ang) + I * sin(ang);
+        cpx w = 1;
+        for (u64 j = 0; j < len / 2; j++, idx++) {
             fprintf(stderr, "(%f %f)", creal(w), cimag(w));
             w *= z;
         }
         fprintf(stderr, "\n");
     }
-
-    /* for (u64 len = 2, idx = 0; len <= n; len <<= 1) {
-        double ang = 2 * PI / len;
-        cpx z = cos(ang) + I * sin(ang);
-        cpx w = 1;
-        for (u64 j = 0; j < len / 8; j++, idx++) {
-            fprintf(stderr, "(%f %f)", creal(w), cimag(w));
-            w *= z;
+    for (u64 len = 2, idx = 0, idx2 = 0; len <= n; len <<= 1) {
+        if (len < 8) {
+            for (u64 j = 0; j < len / 2; j++, idx++, idx2++)
+                fprintf(stderr, "(%f %f)", creal(res[idx2]), cimag(res[idx2]));
+            fprintf(stderr, "\n");
+            continue;
         }
-        for (u64 j = len / 8; j < len / 4; j++, idx++) {
-            fprintf(stderr, "(%f %f)", cimag(w), creal(w));
-            w /= z;
-        }
-        w = I;
-        for (u64 j = len / 4; j < len * 3 / 8; j++, idx++) {
-            fprintf(stderr, "(%f %f)", -creal(w), cimag(w));
-            w /= z;
-        }
-        for (u64 j = len * 3 / 8; j < len / 2; j++, idx++) {
-            fprintf(stderr, "(%f %f)", -creal(w), cimag(w));
-            w /= z;
-        }
+        idx2 = idx;
+        for (u64 j = 0; j < len / 8; j++, idx2++)
+            fprintf(stderr, "(%f %f)", creal(res[idx2]), cimag(res[idx2]));
+        for (u64 j = len / 8; j < len / 4; j++, idx2--)
+            fprintf(stderr, "(%f %f)", cimag(res[idx2]), creal(res[idx2]));
+        for (u64 j = len / 4; j < len * 3 / 8; j++, idx2++)
+            fprintf(stderr, "(%f %f)", -cimag(res[idx2]), creal(res[idx2]));
+        for (u64 j = len * 3 / 8; j < len / 2; j++, idx2--)
+            fprintf(stderr, "(%f %f)", -creal(res[idx2]), cimag(res[idx2]));
+        idx += len / 8 + 1;
         fprintf(stderr, "\n");
-    } */
-
+    }
     return res;
-}
+} */
 
 void fft(cpx* a, u64 n, u64 invert, u32* pos, cpx* ang) {
     for (u64 i = 1; i < n; i++) {

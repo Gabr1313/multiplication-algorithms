@@ -8,8 +8,10 @@ pid_fft=$!
 ./karatsuba <in.gen.txt >out.karatsuba.txt 2> time.karatsuba.txt &
 pid_karatsuba=$!
 
-./naif      <in.gen.txt >out.naif.txt      2> time.naif.txt      &
-pid_naif=$!
+if [[ $1 -le 2000000 ]]; then
+    ./naif      <in.gen.txt >out.naif.txt      2> time.naif.txt      &
+    pid_naif=$!
+fi
 
 wait $pid_fft
 echo "Time fft:       $(cat time.fft.txt)"
@@ -19,8 +21,11 @@ echo "Time karatsuba: $(cat time.karatsuba.txt)"
 
 diff -q out.fft.txt  out.karatsuba.txt
 
-wait $pid_naif
-echo "Time naif:      $(cat time.naif.txt     )"
+if [[ $1 -le 2000000 ]]; then
+    wait $pid_naif
+    echo "Time naif:      $(cat time.naif.txt     )"
 
-diff -q out.naif.txt out.fft.txt
-diff -q out.naif.txt out.karatsuba.txt
+    diff -q out.naif.txt out.fft.txt
+    diff -q out.naif.txt out.karatsuba.txt
+fi
+
