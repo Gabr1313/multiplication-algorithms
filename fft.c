@@ -82,7 +82,6 @@ BigInt mul(BigInt a, BigInt b) {
         u64 shf = ((i & ((1ull << PRC) - 1)) << (6 - PRC));
         c.ptr[i >> PRC] += (res & mask) << shf;
     }
-    double x = __real__ fa[0];
 
     free(fa);
     free(fb);

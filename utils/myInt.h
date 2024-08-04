@@ -29,3 +29,5 @@ BigInt bigint_read(FILE *stream);
 BigInt bigint_read_hex(FILE *stream);
 void bigint_print(FILE *stream, BigInt x);
 void bigint_print_hex(FILE *stream, BigInt x);
+void bigint_sum_eq_mul_u32(BigInt* c, BigInt a, u32 b, u64 u32_shift);
+

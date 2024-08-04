@@ -17,7 +17,7 @@ int main() {
     BigInt c = mul(a, b);
     gettimeofday(&end, NULL);
     f64 time = (end.tv_sec - start.tv_sec) + (f64)(end.tv_usec - start.tv_usec) / 1e6;
-    fprintf(stderr, "%.3f\n", time);
+    fprintf(stderr, "%.6f\n", time);
 
     // bigint_print_hex(stdout, a);
     // fprintf(stdout, "\n*\n");

@@ -6,11 +6,6 @@
 
 void karatsuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
     // `*c` so I avoid memory allocations. I use it as a buffer
-    assert(c->cap >= a.len + b.len);
-    if (a.len == 0 || b.len == 0) {
-        c->len = 0;
-        return;
-    }
 
     // a = x y
     // b = z w
@@ -23,35 +18,27 @@ void karatsuba_rec(BigInt a, BigInt b, BigInt* c, u64* buffer) {
     // -----------------
     // (xz << 2*mid) + (xw+yz << mid) + yz
 
-    c->len = a.len + b.len;
-    assert(c->cap >= c->len);
-    if (a.len <= 1 && b.len <= 1) {
-        u64 x = *a.ptr >> 32;
-        u64 y = *a.ptr & UINT32_MAX;
-        u64 z = *b.ptr >> 32;
-        u64 w = *b.ptr & UINT32_MAX;
-
-        u64 xw_yz = x * w + y * z;
-        u64 carry_2 = (x * w > xw_yz);
-        c->ptr[0] = y * w;
-        c->ptr[1] = x * z;
-
-        u64 tmp = c->ptr[0];
-        c->ptr[0] += xw_yz << 32;
-        u64 carry = c->ptr[0] < tmp;
-        c->ptr[1] += (xw_yz >> 32) + carry + (carry_2 << 32);
-        if (c->ptr[1] == 0) {
-            if (c->ptr[0] == 0) c->len = 0;
-            else c->len = 1;
-        }
+    assert(c->cap >= a.len + b.len);
+    if (a.len == 0 || b.len == 0) {
+        c->len = 0;
         return;
     }
+
+    c->len = a.len + b.len;
+    assert(c->cap >= c->len);
 
     if (a.len < b.len) {
         BigInt tmp = a;
         a = b;
         b = tmp;
     }
+
+    if (a.len <= 32 && b.len <= 32) { // naif
+        for (u64 i = 0; i < b.len * 2; i++) bigint_sum_eq_mul_u32(c, a, ((u32*)b.ptr)[i], i);
+        bigint_clean(c);
+        return;
+    }
+
     u64 mid = a.len / 2;
 
     BigInt x = {

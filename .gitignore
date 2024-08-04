@@ -8,3 +8,4 @@ fft3
 fft4
 fft5
 fft6
+callgrind.out.*
