@@ -29,19 +29,20 @@ void fft(cpx* a, u64 a_size, u64 invert) {
 
         if (i < j) {
             cpx tmp = a[i];
-            a[i] = a[j];
-            a[j] = tmp;
+            a[i]    = a[j];
+            a[j]    = tmp;
         }
     }
 
     for (u64 len = 2; len <= n; len <<= 1) {
         double ang = 2 * PI / len * (invert ? -1 : 1);
-        cpx wlen = cos(ang) + I * sin(ang);
+        cpx wlen   = cos(ang) + I * sin(ang);
         for (u64 i = 0; i < n; i += len) {
             cpx w = 1;
             for (u64 j = 0; j < len / 2; j++) {
-                cpx u = a[i + j], v = a[i + j + len / 2] * w;
-                a[i + j] = u + v;
+                cpx u              = a[i + j];
+                cpx v              = a[i + j + len / 2] * w;
+                a[i + j]           = u + v;
                 a[i + j + len / 2] = u - v;
                 w *= wlen;
             }
@@ -57,8 +58,8 @@ BigInt mul(BigInt a, BigInt b) {
     for (n = 1 << PRC; (n >> PRC) < a.len + b.len; n <<= 1);
 
     u64 mask = ((1ull << (1 << (6 - PRC))) - 1);
-    cpx* fa = malloc(sizeof(cpx) * n);  // * 2 because i use u32
-    cpx* fb = malloc(sizeof(cpx) * n);  // * 2 because i use u32
+    cpx* fa  = malloc(sizeof(cpx) * n);  // * 2 because i use u32
+    cpx* fb  = malloc(sizeof(cpx) * n);  // * 2 because i use u32
     for (u64 i = 0; i < n; i++) {
         u64 shf = ((i & ((1ull << PRC) - 1)) << (6 - PRC));
         if (i < a.len << PRC) fa[i] = (a.ptr[i >> PRC] >> shf) & mask;
@@ -73,12 +74,12 @@ BigInt mul(BigInt a, BigInt b) {
     fft(fa, n, 1);
 
     BigInt c = bigint_new(a.len + b.len);
-    c.len = c.cap;
+    c.len    = c.cap;
 
     u64 carry = 0;
     for (u64 i = 0; i < c.len << PRC; i++) {
         u64 res = (u64)round(creal(fa[i])) + carry;
-        carry = res >> (1 << (6 - PRC));
+        carry   = res >> (1 << (6 - PRC));
         u64 shf = ((i & ((1ull << PRC) - 1)) << (6 - PRC));
         c.ptr[i >> PRC] += (res & mask) << shf;
     }

@@ -4,6 +4,8 @@ karatsuba
 naif
 gen
 fft
+fft.simd
+fft.mt
 fft3
 fft4
 fft5

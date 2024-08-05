@@ -4,15 +4,15 @@
 ./gen $1 $1 >in.gen.txt
 
 ./fft <in.gen.txt >out.fft.txt 2> time.fft.txt # &
-echo "Time fft: $(cat time.fft.txt)"
+echo "Time fft   : $(cat time.fft.txt)"
 
 # ./fft <in.gen.txt >out.fft.txt 2> time.fft.txt # &
 # echo "Time fft: $(cat time.fft.txt)"
 # diff -q out.fft5.txt  out.fft.txt
 
-./fft.old <in.gen.txt >out.fft.old.txt 2> time.fft.old.txt # &
-echo "Time fft.old: $(cat time.fft.old.txt)"
-diff -q out.fft.txt  out.fft.old.txt
+./fft.bk <in.gen.txt >out.fft.bk.txt 2> time.fft.bk.txt # &
+echo "Time fft.bk: $(cat time.fft.bk.txt)"
+diff -q out.fft.txt  out.fft.bk.txt
 
 # ./gen $1 $1 >in.gen.txt
 #
