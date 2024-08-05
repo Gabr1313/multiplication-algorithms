@@ -1,5 +1,5 @@
 CXX                = gcc
-CXXFLAGS_COMMON    = -std=c17 -Wall -Wextra
+CXXFLAGS_COMMON    = -std=c17 -Wall -Wextra -g3
 CXXFLAGS_RELEASE   = $(CXXFLAGS_COMMON) -O3
 CXXFLAGS_RELEASE_2 = $(CXXFLAGS_RELEASE) --static -DNDEBUG -ffast-math
 CXXFLAGS_DEBUG     = $(CXXFLAGS_COMMON) -O0 -g3 -fsanitize=address,undefined
@@ -46,7 +46,7 @@ fft.mt: $(OBJECTS) $(OBJ_DIR)/main.o
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(OBJ_DIR)/fft.o $(OBJ_DIR)/main.o $(CXXFLAGS_LINK) -o $(BIN_DIR)/fft.mt
 
 fft.simd: $(OBJECTS) $(OBJ_DIR)/main.o
-	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/fft.c -o $(OBJ_DIR)/fft.o
+	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/fft.simd.c -o $(OBJ_DIR)/fft.o
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(OBJ_DIR)/fft.o $(OBJ_DIR)/main.o $(CXXFLAGS_LINK) -o $(BIN_DIR)/fft.simd
 
 gen:

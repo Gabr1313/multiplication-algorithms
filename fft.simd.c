@@ -22,6 +22,7 @@
 
 typedef complex double cpx;
 
+// slower don't know why
 /* inline __m512d custom_mul(__m512d ab, __m512d cd) {
     // (a + i*b) * (c + i*d) = (ca - db) + i*(da + cb)
     __m512d dc   = _mm512_permute_pd(cd, 0b01010101);
@@ -85,7 +86,7 @@ void fft(cpx* a, u64 a_size, u64 invert) {
 
     if (invert)
         for (u64 i = 0; i < a_size; i++) a[i] /= n;
-} */
+}  */
 
 void fft(cpx* a, u64 a_size, u64 invert) {
     u64 n = a_size;
@@ -130,7 +131,7 @@ void fft(cpx* a, u64 a_size, u64 invert) {
 
     if (invert)
         for (u64 i = 0; i < a_size; i++) a[i] /= n;
-} 
+}  
 
 BigInt mul(BigInt a, BigInt b) {
     u64 n;
