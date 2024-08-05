@@ -22,17 +22,14 @@
 
 typedef complex double cpx;
 
-// slower don't know why
-/* inline __m512d custom_mul(__m512d ab, __m512d cd) {
-    // (a + i*b) * (c + i*d) = (ca - db) + i*(da + cb)
-    __m512d dc   = _mm512_permute_pd(cd, 0b01010101);
-    __m512d d0   = _mm512_maskz_mov_pd(0b01010101, dc);
-    __m512d c0   = _mm512_maskz_mov_pd(0b10101010, dc);
-    __m512d _dc  = _mm512_sub_pd(c0, d0);
-    __m512d a0   = _mm512_maskz_mov_pd(0b01010101, ab);
-    __m512d aa   = _mm512_add_pd(a0, _mm512_permute_pd(a0, 0b01010101));
-    __m512d b0   = _mm512_maskz_mov_pd(0b10101010, ab);
-    __m512d bb   = _mm512_add_pd(b0, _mm512_permute_pd(b0, 0b01010101));
+// (a + i*b) * (c + i*d) = (ca - db) + i*(da + cb)
+inline __m512d custom_mul(__m512d ab, __m512d cd) {  // too slow
+    u64 sign_bit = (1ull << 63);
+    __m512i mask = _mm512_set_epi64(0, sign_bit, 0, sign_bit, 0, sign_bit, 0, sign_bit);
+    __m512d dc   = _mm512_permutevar_pd(cd, _mm512_set_epi64(12, 14, 8, 10, 4, 6, 0, 2));  // * 2?
+    __m512d _dc  = (__m512d)_mm512_xor_epi64((__m512i)dc, mask);
+    __m512d aa   = _mm512_permutevar_pd(ab, _mm512_set_epi64(12, 12, 8, 8, 4, 4, 0, 0));    // * 2?
+    __m512d bb   = _mm512_permutevar_pd(ab, _mm512_set_epi64(14, 14, 10, 10, 6, 6, 2, 2));  // * 2?
     __m512d cada = _mm512_mul_pd(cd, aa);
     __m512d dbcb = _mm512_mul_pd(_dc, bb);
     __m512d res  = _mm512_add_pd(cada, dbcb);
@@ -57,7 +54,7 @@ void fft(cpx* a, u64 a_size, u64 invert) {
         double ang = 2 * PI / len * (invert ? -1 : 1);
         cpx wlen   = cos(ang) + I * sin(ang);
         for (u64 i = 0; i < n; i += len) {
-            cpx w = 1;
+            /* cpx w = 1;
             u64 j;
             __m512d ww = _mm512_set_pd(cimag(wlen * wlen * wlen), creal(wlen * wlen * wlen),
                                        cimag(wlen * wlen), creal(wlen * wlen), cimag(wlen),
@@ -80,58 +77,61 @@ void fft(cpx* a, u64 a_size, u64 invert) {
                 a[i + j]           = u + v;
                 a[i + j + len / 2] = u - v;
                 w *= wlen;
+            } */
+
+            /* cpx w      = 1;
+            __m512d ww = _mm512_set_pd(cimag(wlen * wlen * wlen), creal(wlen * wlen * wlen),
+                                       cimag(wlen * wlen), creal(wlen * wlen), cimag(wlen),
+                                       creal(wlen), 0, 1);
+            cpx wlen4  = wlen * wlen * wlen * wlen;
+            __m512d ll = _mm512_set_pd(cimag(wlen4), creal(wlen4), cimag(wlen4), creal(wlen4),
+                                       cimag(wlen4), creal(wlen4), cimag(wlen4), creal(wlen4));
+            u64 j;
+            for (j = 0; j + 3 < len / 2; j += 4) {  // this is the slowest part!
+                __m512d vv = _mm512_loadu_pd((double*)&a[i + j + len / 2]);
+                _mm512_storeu_pd((double*)&a[i + j + len / 2], custom_mul(vv, ww));
+                ww = custom_mul(ww, ll);
             }
-        }
-    }
+            w = cpowl(wlen, j);
+            for (; j < len / 2; j++) a[i + j + len / 2] *= w, w *= wlen;
+            for (j = 0; j + 3 < len / 2; j += 4) {
+                __m512d uu = _mm512_loadu_pd((double*)&a[i + j]);
+                __m512d vv = _mm512_loadu_pd((double*)&a[i + j + len / 2]);
+                _mm512_storeu_pd((double*)&a[i + j], _mm512_add_pd(uu, vv));
+                _mm512_storeu_pd((double*)&a[i + j + len / 2], _mm512_sub_pd(uu, vv));
+            }
+            for (; j < len / 2; j++) {
+                cpx u = a[i + j], v = a[i + j + len / 2];
+                a[i + j]           = u + v;
+                a[i + j + len / 2] = u - v;
+            } */
 
-    if (invert)
-        for (u64 i = 0; i < a_size; i++) a[i] /= n;
-}  */
-
-void fft(cpx* a, u64 a_size, u64 invert) {
-    u64 n = a_size;
-
-    for (u64 i = 1, j = 0; i < n; i++) {
-        u64 bit = n >> 1;
-        for (; j & bit; bit >>= 1) j ^= bit;
-        j ^= bit;
-        if (i < j) {
-            cpx tmp = a[i];
-            a[i]    = a[j];
-            a[j]    = tmp;
-        }
-    }
-
-    for (u64 len = 2; len <= n; len <<= 1) {
-        double ang = 2 * PI / len * (invert ? -1 : 1);
-        cpx wlen   = cos(ang) + I * sin(ang);
-        for (u64 i = 0; i < n; i += len) {
             cpx w = 1;
             u64 j;
             // (a + i*b) * (c + i*d) = (ac - bd) + i*(ad + bc)
             for (j = 0; j + 3 < len / 2; j += 4) {
+                a[i + j + 0 + len / 2] *= w, w *= wlen;
+                a[i + j + 1 + len / 2] *= w, w *= wlen;
+                a[i + j + 2 + len / 2] *= w, w *= wlen;
+                a[i + j + 3 + len / 2] *= w, w *= wlen;
                 __m512d uu = _mm512_loadu_pd((double*)&a[i + j]);
-                a[i + j + len / 2] *= w;
-                a[i + j + 1 + len / 2] *= (w *= wlen);
-                a[i + j + 2 + len / 2] *= (w *= wlen);
-                a[i + j + 3 + len / 2] *= (w *= wlen);
                 __m512d vv = _mm512_loadu_pd((double*)&a[i + j + len / 2]);
                 _mm512_storeu_pd((double*)&a[i + j], _mm512_add_pd(uu, vv));
                 _mm512_storeu_pd((double*)&a[i + j + len / 2], _mm512_sub_pd(uu, vv));
-                w *= wlen;
             }
             for (; j < len / 2; j++) {
-                cpx u = a[i + j], v = a[i + j + len / 2] * w;
+                a[i + j + len / 2] *= w, w *= wlen;
+                cpx u              = a[i + j];
+                cpx v              = a[i + j + len / 2];
                 a[i + j]           = u + v;
                 a[i + j + len / 2] = u - v;
-                w *= wlen;
             }
         }
     }
 
     if (invert)
         for (u64 i = 0; i < a_size; i++) a[i] /= n;
-}  
+}
 
 BigInt mul(BigInt a, BigInt b) {
     u64 n;
