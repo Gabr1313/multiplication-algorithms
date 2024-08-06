@@ -46,12 +46,14 @@ fft.mt: $(OBJECTS) $(OBJ_DIR)/main.o
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(OBJ_DIR)/fft.o $(OBJ_DIR)/main.o $(CXXFLAGS_LINK) -o $(BIN_DIR)/fft.mt
 
 fft.simd: $(OBJECTS) $(OBJ_DIR)/main.o
-	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/fft.simd.c -o $(OBJ_DIR)/fft.o
+	$(CXX) $(CXXFLAGS) -march=skylake-avx512 -c $(SRC_DIR)/fft.simd.c -o $(OBJ_DIR)/fft.o
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(OBJ_DIR)/fft.o $(OBJ_DIR)/main.o $(CXXFLAGS_LINK) -o $(BIN_DIR)/fft.simd
+
+all: karatsuba naif fft fft.simd
 
 gen:
 	$(CXX) $(CXXFLAGS) $(SRC_DIR)/gen.c -o $(BIN_DIR)/gen
 
 .PHONY: clean
 clean:
-	rm -f $(OBJ_DIR)/*.o karatsuba naif fft
+	rm -f $(OBJ_DIR)/*.o karatsuba naif fft fft.mt fft.simd

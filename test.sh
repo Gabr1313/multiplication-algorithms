@@ -2,8 +2,11 @@
 
 ./gen $1 $1 >in.gen.txt
 
-./fft.simd <in.gen.txt >out.fft.txt 2> time.fft.txt                       &
+./fft       <in.gen.txt >out.fft.txt 2> time.fft.txt &
 pid_fft=$!
+
+./fft.simd <in.gen.txt >out.fft.simd.txt 2> time.fft.simd.txt  &
+pid_fft_simd=$!
 
 if [[ $1 -le 10000000 ]]; then
     ./karatsuba <in.gen.txt >out.karatsuba.txt 2> time.karatsuba.txt &
@@ -17,6 +20,10 @@ fi
 
 wait $pid_fft
 echo "Time fft:       $(cat time.fft.txt)"
+
+wait $pid_fft_simd
+echo "Time fft.simd:  $(cat time.fft.simd.txt)"
+    diff -q out.fft.txt  out.fft.simd.txt
 
 if [[ $1 -le 10000000 ]]; then
     wait $pid_karatsuba

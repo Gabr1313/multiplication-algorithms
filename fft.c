@@ -26,7 +26,6 @@ void fft(cpx* a, u64 a_size, u64 invert) {
         u64 bit = n >> 1;
         for (; j & bit; bit >>= 1) j ^= bit;
         j ^= bit;
-
         if (i < j) {
             cpx tmp = a[i];
             a[i]    = a[j];
