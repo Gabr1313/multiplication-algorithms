@@ -22,6 +22,7 @@
 #include "utils/myInt.h"
 
 #define NUM_THREADS 8  // @test are done only with NUM_THREADS as a power of 2
+// @todo: better cache (instead of += step, do += 1 and change start and stop values)
 
 typedef complex double cpx;
 
@@ -132,8 +133,9 @@ void* fft_thread_sort(void* args_d) {
     u64 i_0  = (*(ArgsD*)args_d).i_0;
     u64 n    = (*(ArgsD*)args_d).n;
     u64 step = n / NUM_THREADS;
-    u64 m;
+    u64 m = 0;
     for (int i = 0; (1ull << i) < n; i++) m = i;
+    assert(m);
     u64 j = (i_0 == 0 ? 0 : reverse_bit(step * i_0 - 1, m));
     for (u64 i = (i_0 == 0 ? 1 : step * i_0); i < step * (i_0 + 1); i++) {
         u64 bit = n >> 1;
@@ -148,8 +150,7 @@ void* fft_thread_sort(void* args_d) {
     return NULL;
 }
 
-void fft(cpx* a, u64 a_size, u64 invert) {
-    u64 n = a_size;
+void fft(cpx* a, u64 n, u64 invert) {
     pthread_t threads[NUM_THREADS];
     ArgsD args_d[NUM_THREADS];
     for (int i = 0; i < NUM_THREADS; i++) {

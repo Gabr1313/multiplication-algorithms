@@ -1,4 +1,5 @@
 CXX                = gcc
+#remove -g3
 CXXFLAGS_COMMON    = -std=c17 -Wall -Wextra -g3
 CXXFLAGS_RELEASE   = $(CXXFLAGS_COMMON) -O3
 CXXFLAGS_RELEASE_2 = $(CXXFLAGS_RELEASE) --static -DNDEBUG -ffast-math

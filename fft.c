@@ -19,9 +19,7 @@
 
 typedef complex double cpx;
 
-void fft(cpx* a, u64 a_size, u64 invert) {
-    u64 n = a_size;
-
+void fft(cpx* a, u64 n, u64 invert) {
     for (u64 i = 1, j = 0; i < n; i++) {
         u64 bit = n >> 1;
         for (; j & bit; bit >>= 1) j ^= bit;
@@ -49,7 +47,7 @@ void fft(cpx* a, u64 a_size, u64 invert) {
     }
 
     if (invert)
-        for (u64 i = 0; i < a_size; i++) a[i] /= n;
+        for (u64 i = 0; i < n; i++) a[i] /= n;
 }
 
 BigInt mul(BigInt a, BigInt b) {
