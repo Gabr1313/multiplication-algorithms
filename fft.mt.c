@@ -10,6 +10,8 @@
 #define PRC 5
 #define PI 3.141592653589793238462643383279502884
 
+// @todo: spawn 8 thread, not 8*(2*3+1) !
+
 #include <assert.h>
 #include <complex.h>
 #include <math.h>
@@ -19,7 +21,7 @@
 
 #include "utils/myInt.h"
 
-#define NUM_THREADS 8
+#define NUM_THREADS 8  // @test are done only with NUM_THREADS as a power of 2
 
 typedef complex double cpx;
 
@@ -35,6 +37,21 @@ typedef struct _ArgsB {
     sem_t *sem_a, *sem_b;
 } ArgsB;
 
+typedef struct _ArgsC {
+    cpx *fa, *fb;
+    u64 i_0, n;
+} ArgsC;
+
+typedef struct _ArgsD {
+    cpx* a;
+    u64 i_0, n;
+} ArgsD;
+
+typedef struct _ArgsE {
+    cpx* a;
+    u64 i_0, n;
+} ArgsE;
+
 void* fft_thread(void* args_b) {
     u64 n        = (*(ArgsB*)args_b).n;
     u64 i_0      = (*(ArgsB*)args_b).i;
@@ -48,14 +65,31 @@ void* fft_thread(void* args_b) {
         if (len == 0) break;
         cpx wlen  = args->wlen;
         u64 delta = len * NUM_THREADS;
-        for (u64 i = i_0 * len; i < n; i += delta) {
-            cpx w = 1;
-            for (u64 j = 0; j < len / 2; j++) {
-                cpx u              = a[i + j];
-                cpx v              = a[i + j + len / 2] * w;
-                a[i + j]           = u + v;
-                a[i + j + len / 2] = u - v;
-                w *= wlen;
+        if (n / len < NUM_THREADS) {
+            u64 mod   = NUM_THREADS * len / n;
+            u64 diff  = ((i_0 % mod) * len / 2 / mod);
+            u64 start = ((i_0 / mod) * len) + diff;
+            u64 len_j = len / 2 / mod;
+            for (u64 i = start; i < n; i += delta) {
+                cpx w = cpow(wlen, diff);  // @slow
+                for (u64 j = 0; j < len_j; j++) {
+                    cpx u              = a[i + j];
+                    cpx v              = a[i + j + len / 2] * w;
+                    a[i + j]           = u + v;
+                    a[i + j + len / 2] = u - v;
+                    w *= wlen;
+                }
+            }
+        } else {
+            for (u64 i = i_0 * len; i < n; i += delta) {
+                cpx w = 1;
+                for (u64 j = 0; j < len / 2; j++) {
+                    cpx u              = a[i + j];
+                    cpx v              = a[i + j + len / 2] * w;
+                    a[i + j]           = u + v;
+                    a[i + j + len / 2] = u - v;
+                    w *= wlen;
+                }
             }
         }
         sem_post(sem_b);
@@ -63,9 +97,45 @@ void* fft_thread(void* args_b) {
     return NULL;
 }
 
-void fft(cpx* a, u64 a_size, u64 invert) {
-    u64 n = a_size;
-    for (u64 i = 1, j = 0; i < n; i++) {
+void* fft_thread_mul(void* args_c) {
+    cpx* fa = (*(ArgsC*)args_c).fa;
+    cpx* fb = (*(ArgsC*)args_c).fb;
+    u64 i_0 = (*(ArgsC*)args_c).i_0;
+    u64 n   = (*(ArgsC*)args_c).n;
+    for (u64 i = i_0; i < n; i += NUM_THREADS) fa[i] *= fb[i];
+    return NULL;
+}
+
+void* fft_thread_div(void* args_e) {
+    cpx* a   = (*(ArgsE*)args_e).a;
+    u64 i_0  = (*(ArgsE*)args_e).i_0;
+    u64 n    = (*(ArgsE*)args_e).n;
+    double m = (double)1 / n;
+    for (u64 i = i_0; i < n; i += NUM_THREADS) a[i] *= m;
+    return NULL;
+}
+
+u64 reverse_bit(u64 x, u64 n) {
+    u64 i   = 0;
+    u64 rev = 0;
+    for (; x; i++) {
+        rev <<= 1;
+        rev += x & 1;
+        x >>= 1;
+    }
+    rev <<= (n - i + 1);
+    return rev;
+}
+
+void* fft_thread_sort(void* args_d) {
+    cpx* a   = (*(ArgsD*)args_d).a;
+    u64 i_0  = (*(ArgsD*)args_d).i_0;
+    u64 n    = (*(ArgsD*)args_d).n;
+    u64 step = n / NUM_THREADS;
+    u64 m;
+    for (int i = 0; (1ull << i) < n; i++) m = i;
+    u64 j = (i_0 == 0 ? 0 : reverse_bit(step * i_0 - 1, m));
+    for (u64 i = (i_0 == 0 ? 1 : step * i_0); i < step * (i_0 + 1); i++) {
         u64 bit = n >> 1;
         for (; j & bit; bit >>= 1) j ^= bit;
         j ^= bit;
@@ -75,8 +145,19 @@ void fft(cpx* a, u64 a_size, u64 invert) {
             a[j]    = tmp;
         }
     }
+    return NULL;
+}
 
+void fft(cpx* a, u64 a_size, u64 invert) {
+    u64 n = a_size;
     pthread_t threads[NUM_THREADS];
+    ArgsD args_d[NUM_THREADS];
+    for (int i = 0; i < NUM_THREADS; i++) {
+        args_d[i] = (ArgsD){.n = n, .a = a, .i_0 = i};
+        pthread_create(&threads[i], 0, fft_thread_sort, &args_d[i]);
+    }
+    for (int i = 0; i < NUM_THREADS; i++) pthread_join(threads[i], NULL);
+
     sem_t sems_a[NUM_THREADS], sems_b[NUM_THREADS];
     Args args;
     ArgsB args_b[NUM_THREADS];
@@ -105,8 +186,14 @@ void fft(cpx* a, u64 a_size, u64 invert) {
     for (int i = 0; i < NUM_THREADS; i++) sem_post(&sems_a[i]);
     for (int i = 0; i < NUM_THREADS; i++) pthread_join(threads[i], NULL);
 
-    if (invert)
-        for (u64 i = 0; i < a_size; i++) a[i] /= n;
+    if (invert) {
+        ArgsE args_e[NUM_THREADS];
+        for (int i = 0; i < NUM_THREADS; i++) {
+            args_e[i] = (ArgsE){.n = n, .a = a, .i_0 = i};
+            pthread_create(&threads[i], 0, fft_thread_div, &args_e[i]);
+        }
+        for (int i = 0; i < NUM_THREADS; i++) pthread_join(threads[i], NULL);
+    }
 }
 
 BigInt mul(BigInt a, BigInt b) {
@@ -126,7 +213,15 @@ BigInt mul(BigInt a, BigInt b) {
 
     fft(fa, n, 0);
     fft(fb, n, 0);
-    for (u64 i = 0; i < n; i++) fa[i] *= fb[i];
+
+    ArgsC args_c[NUM_THREADS];
+    pthread_t threads[NUM_THREADS];
+    for (int i = 0; i < NUM_THREADS; i++) {
+        args_c[i] = (ArgsC){.n = n, .fa = fa, .fb = fb, .i_0 = i};
+        pthread_create(&threads[i], 0, fft_thread_mul, &args_c[i]);
+    }
+    for (int i = 0; i < NUM_THREADS; i++) pthread_join(threads[i], NULL);
+
     fft(fa, n, 1);
 
     BigInt c = bigint_new(a.len + b.len);

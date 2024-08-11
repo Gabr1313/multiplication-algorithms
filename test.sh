@@ -5,6 +5,9 @@
 ./fft       <in.gen.txt >out.fft.txt 2> time.fft.txt &
 pid_fft=$!
 
+./fft.mt <in.gen.txt >out.fft.mt.txt 2> time.fft.mt.txt  &
+pid_fft_mt=$!
+
 ./fft.simd <in.gen.txt >out.fft.simd.txt 2> time.fft.simd.txt  &
 pid_fft_simd=$!
 
@@ -20,6 +23,10 @@ fi
 
 wait $pid_fft
 echo "Time fft:       $(cat time.fft.txt)"
+
+wait $pid_fft_mt
+echo "Time fft.mt:    $(cat time.fft.mt.txt)"
+    diff -q out.fft.txt  out.fft.mt.txt
 
 wait $pid_fft_simd
 echo "Time fft.simd:  $(cat time.fft.simd.txt)"

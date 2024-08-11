@@ -21,6 +21,7 @@
 typedef complex double cpx;
 
 // faster on smaller input, slower on bigger ones, don't know why!
+// maybe cache misses?
 
 // (a + i*b) * (c + i*d) = (e + i*f)
 void cpx_mul(double a, double b, double c, double d, double* e, double* f) {
@@ -89,6 +90,28 @@ void fft(double* a_r, double* a_i, u64 a_size, u64 invert) {
                 a_r[i + len / 2] = u_r - v_r;
                 a_i[i + len / 2] = u_i - v_i;
             }
+            /* for (u64 i = 0; i < n; i += len * 8) { // can't believe this is not any faster!
+                __m512d u_r    = _mm512_loadu_pd(&a_r[i]);
+                u_r            = _mm512_mask_loadu_pd(u_r, 0b10101010, &a_r[i + 7]);
+                __m512d v_r    = _mm512_loadu_pd(&a_r[i + 1]);
+                v_r            = _mm512_mask_loadu_pd(v_r, 0b10101010, &a_r[i + 8]);
+                __m512d sum_r  = _mm512_add_pd(u_r, v_r);
+                __m512d diff_r = _mm512_sub_pd(u_r, v_r);
+                _mm512_mask_storeu_pd(&a_r[i], 0b01010101, sum_r);
+                _mm512_mask_storeu_pd(&a_r[i + 7], 0b10101010, sum_r);
+                _mm512_mask_storeu_pd(&a_r[i + 1], 0b01010101, diff_r);
+                _mm512_mask_storeu_pd(&a_r[i + 8], 0b10101010, diff_r);
+                __m512d u_i    = _mm512_loadu_pd(&a_i[i]);
+                u_i            = _mm512_mask_loadu_pd(u_i, 0b10101010, &a_i[i + 7]);
+                __m512d v_i    = _mm512_loadu_pd(&a_i[i + 1]);
+                v_i            = _mm512_mask_loadu_pd(v_i, 0b10101010, &a_i[i + 8]);
+                __m512d sum_i  = _mm512_add_pd(u_i, v_i);
+                __m512d diff_i = _mm512_sub_pd(u_i, v_i);
+                _mm512_mask_storeu_pd(&a_i[i], 0b01010101, sum_i);
+                _mm512_mask_storeu_pd(&a_i[i + 7], 0b10101010, sum_i);
+                _mm512_mask_storeu_pd(&a_i[i + 1], 0b01010101, diff_i);
+                _mm512_mask_storeu_pd(&a_i[i + 8], 0b10101010, diff_i);
+            } */
         } else if (len == 4) {
             double tmp[2][3];
             tmp[0][0] = 1, tmp[1][0] = 0, tmp[0][1] = step1[0], tmp[1][1] = step1[1];
